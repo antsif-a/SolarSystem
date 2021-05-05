@@ -1,7 +1,7 @@
 {
     "name": "solar-system",
     "displayName": "Solar System",
-    "description": "Implements real Solar System.",
+    "description": "Mindustry mod that adds full-implemented solar system.",
     "author": "Summet",
     "main": "solar.SolarSystem",
     "version": "1.0",
