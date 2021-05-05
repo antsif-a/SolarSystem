@@ -1,0 +1,112 @@
+import groovy.json.*
+
+apply plugin: 'java'
+
+sourceCompatibility = 14
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+}
+
+ext {
+    def json = new JsonSlurper()
+    def libs = "$rootDir/build/libs"
+    def modFile = file("${sourceSets.main.resources.srcDirs.last()}/mod.json")
+
+    mod = json.parseText(modFile.text)
+
+    artifactBaseName = mod.name + (!mod.version.isEmpty() ? "-$mod.version" : "")
+
+    jarPath = "$libs/${artifactBaseName}-desktop.jar"
+    dexPath = "$libs/${artifactBaseName}-android.jar"
+
+    versions = [:]
+    versions.mindustry = 'v' + mod.minGameVersion
+    versions.jabel = '0.3.0'
+}
+
+dependencies {
+    compileOnly "com.github.Anuken.Arc:arc-core:$versions.mindustry"
+    compileOnly "com.github.Anuken.Mindustry:core:$versions.mindustry"
+
+    annotationProcessor "com.github.bsideup.jabel:jabel-javac-plugin:$versions.jabel"
+}
+
+task desktop(type: Jar) {
+    archiveBaseName.set "$artifactBaseName-desktop"
+
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+
+    with jar
+}
+
+task android(type: Exec, dependsOn: desktop) {
+    def command = [
+            'd8', jarPath,
+            '--min-api', '28',
+            '--output', dexPath
+    ]
+
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        commandLine("cmd", "/c", *command)
+    } else {
+        commandLine(*command)
+    }
+}
+
+task dist(type: Jar, dependsOn: android) {
+    archiveBaseName.set artifactBaseName
+
+    from zipTree(jarPath), zipTree(dexPath)
+}
+
+// imports mod and runs the game, intended for personal use only
+task dev(dependsOn: desktop) {
+    def mindustry = [:]
+    mindustry.home = "${System.getenv('appdata')}/Mindustry"
+    mindustry.mods = "$mindustry.home/mods"
+    mindustry.desktopJar = "$mindustry.home/builds/Mindustry-${mod.minGameVersion}.jar"
+
+    doLast {
+        copy {
+            from file(jarPath)
+            into file(mindustry.mods)
+        }
+
+        println("\u001B[34m[I]\u001B[0m Copied $mod.name-$mod.version-desktop.jar to mods.")
+        println '\u001B[34m[I]\u001B[0m Booting Mindustry...'
+
+        if (project.hasProperty('desktopJar')) {
+            mindustry.desktopJar = project.property('desktopJar')
+        } else {
+            println '\u001B[33m[W]\u001B[0m Warning: No desktopJar property found, using default.'
+        }
+
+        println()
+
+        javaexec {
+            classpath += files(mindustry.desktopJar)
+            main 'mindustry.desktop.DesktopLauncher'
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    if (JavaVersion.current() != JavaVersion.VERSION_1_8){
+        options.compilerArgs = ['--release', '8', '--enable-preview']
+    }
+
+    options.compilerArgs << '-Xplugin:jabel'
+
+    doFirst {
+        options.compilerArgs = options.compilerArgs.findAll {
+            it != '--enable-preview'
+        }
+    }
+}

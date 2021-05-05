@@ -1,0 +1,9 @@
+{
+    "name": "solar-system",
+    "displayName": "Solar System",
+    "description": "Implements real Solar System.",
+    "author": "Summet",
+    "main": "solar.SolarSystem",
+    "version": "1.0",
+    "minGameVersion": "126.2"
+}
