@@ -4,6 +4,7 @@
     "description": "Mindustry mod that adds full-implemented solar system.",
     "author": "Summet",
     "main": "solar.SolarSystem",
+    "java": true,
     "version": "1.0",
     "minGameVersion": "126.2"
 }
